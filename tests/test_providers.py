@@ -11,6 +11,11 @@ from providers import generate
 
 
 class ProviderSDKCompatibilityTest(unittest.TestCase):
+    def setUp(self):
+        # Avoid sticky fallback selections leaking from other unit tests.
+        from providers import _preferred_models
+        _preferred_models.clear()
+
     def test_anthropic_messages_create_uses_supported_keywords(self):
         captured = {}
 
