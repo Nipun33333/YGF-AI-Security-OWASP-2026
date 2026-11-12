@@ -15,7 +15,7 @@ def generate(provider: str, system: str, user: str) -> str:
         client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"], timeout=45)
         msg = client.messages.create(
             model=os.getenv("CLAUDE_MODEL", "claude-sonnet-4-5"),
-            max_tokens=450, temperature=0,
+            max_tokens=450,
             system=system, messages=[{"role": "user", "content": user}]
         )
         return "\n".join(getattr(b, "text", "") for b in msg.content)
