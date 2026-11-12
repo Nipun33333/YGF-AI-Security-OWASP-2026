@@ -75,3 +75,13 @@ The adversary controls chat messages, fake KB documents, and mock MCP metadata, 
 ## Usage and research ethics
 
 Demo markers are fictitious: `SECRET-FLAG-123`, `HIDDEN-CONTEXT-42` etc. `example.invalid` is non-routable. No shell commands are executed even in vulnerable fixture mode. Use a Docker/VM sandbox, restrict real provider keys, and only test your own application.
+## Running API probes securely with GitHub Actions (no keys in chat or Git)
+
+1. In this repository, open **Settings → Secrets and variables → Actions → New repository secret**.
+2. Create a secret named `GEMINI_API_KEY` and paste the Gemini key directly into the GitHub secret value field.
+3. Create a second secret named `ANTHROPIC_API_KEY` and paste the Anthropic key. **Claude API may require paid credits even when the key exists.**
+4. Open **Actions → YGF Live API Security Tests → Run workflow**. Choose `both` to compare providers, or a single provider to test just that one.
+5. Start with **3 cases** for a small smoke test; choosing **33 cases** exercises all 11 risk families. Each case calls each selected provider twice (before and after), so 33 cases with both providers means **132 model API calls**, and may incur charges or exhaust free quotas.
+6. After a successful workflow, download the `ygf-live-probe-...` artifact from that run. It contains a CSV of real provider *text-response probes*, not actual tool execution. Review it before putting any claims in the assignment.
+
+This workflow is **manual only** (not scheduled or triggered by code pushes), deliberately does not echo API key values, and never commits live results. If there are no Claude API credits, test Gemini alone first and disclose the Claude limitation rather than fabricating a comparison. Do not paste API keys into ChatGPT, GitHub Issues, README, screenshots or other public files. Rotate any key that has been exposed.
