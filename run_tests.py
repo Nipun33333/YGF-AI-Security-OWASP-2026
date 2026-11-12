@@ -10,10 +10,15 @@ def main():
     p.add_argument("--mode", choices=["fixture","live"], default="fixture")
     p.add_argument("--provider",choices=["claude","gemini","both"],default="both")
     p.add_argument("--output", default=None)
+    p.add_argument("--max-cases", type=int, default=None, help="Limit number of test cases to control live API cost")
     args=p.parse_args()
+    if args.max_cases is not None and args.max_cases < 1:
+        p.error("--max-cases must be at least 1")
     models=["claude","gemini"] if args.provider=="both" else [args.provider]
     rows=[]
-    for c in all_cases():
+    for case_index,c in enumerate(all_cases()):
+        if args.max_cases is not None and case_index >= args.max_cases:
+            break
         for model in models:
             for hardened in (False,True):
                 try: rows.append(run_case(c,model,hardened,args.mode))
