@@ -85,3 +85,26 @@ Demo markers are fictitious: `SECRET-FLAG-123`, `HIDDEN-CONTEXT-42` etc. `exampl
 6. After a successful workflow, download the `ygf-live-probe-...` artifact from that run. It contains a CSV of real provider *text-response probes*, not actual tool execution. Review it before putting any claims in the assignment.
 
 This workflow is **manual only** (not scheduled or triggered by code pushes), deliberately does not echo API key values, and never commits live results. If there are no Claude API credits, test Gemini alone first and disclose the Claude limitation rather than fabricating a comparison. Do not paste API keys into ChatGPT, GitHub Issues, README, screenshots or other public files. Rotate any key that has been exposed.
+
+
+## Seven-model fallback with FREE-TIER-FIRST behavior (November 2026)
+
+Gemini tries these *independently named models in order* (up to 7 per probe), moves on only for **404/model unavailable, 429/quota, timeout or 5xx**, and remembers the first working model for the next probe:
+
+1. `gemini-3.8-flash`
+2. `gemini-3.6-flash`
+3. `gemini-3.5-flash`
+4. `gemini-3.5-flash-lite`
+5. `gemini-3.1-flash-lite`
+6. `gemini-3-flash-preview`
+7. `gemini-2.5-flash-lite` (may no longer be available to newly created keys; skipped on 404)
+
+The list contains only models whose Standard text API has a documented **Free Tier** on Google's pricing page, but **free-tier eligibility does NOT by itself prevent charges on a billing-enabled Google project**. To keep calls free, keep your Google AI Studio API project on the Free usage tier and stay within quotas. Models may be retired, so successful requests record the exact `actual_model` in `results/live_results.csv`. If no candidate is available, the row is explicitly marked **SKIPPED/NOT_TESTED**, never a fictitious success.
+
+**Claude is different: no persistent free Claude API tier exists.** Changing Claude model IDs does not fix the `credit balance is too low` error. The available paid-model fallback list in `providers.py` contains seven Claude model IDs, but the workflow defaults to `allow_paid_claude=false`. If you deliberately obtain API credits, select **allow_paid_claude=true** in the workflow; paid Claude model fallback then applies, and token charges may occur. Without opt-in, a `both` run can collect Gemini results while the Claude rows correctly say **SKIPPED**.
+
+Our fallback will NOT rotate models to bypass an invalid API key, a real safety refusal, or Claude's exhausted billing balance. It does not hide failed requests: the workflow logs which models failed, why (error category only), and the actual serving model, without displaying keys. Skipped models are not counted as live-tested Claude or Gemini performance.
+
+**Workflow:** Actions → YGF Live API Security Tests → Run workflow → Provider `gemini` (or `both` with Claude skipped), Max cases `3`, leave **allow_paid_claude unchecked**. Run with `33` only when enough free quota remains. Every case runs both BEFORE and AFTER; fallbacks may increase request count up to 7x in the worst case. Results are stored as an Actions artifact (not committed to the public repository).
+
+Official pricing: https://ai.google.dev/gemini-api/docs/pricing and https://platform.claude.com/docs/en/about-claude/pricing
