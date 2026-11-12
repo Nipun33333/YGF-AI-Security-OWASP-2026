@@ -13,6 +13,11 @@ on:
           - both
           - gemini
           - claude
+      allow_paid_claude:
+        description: "Explicitly allow paid Anthropic API calls (default OFF; no free Claude API)"
+        required: true
+        type: boolean
+        default: false
       max_cases:
         description: "3 cases = small smoke test; 33 cases = full OWASP sample (incurs more API calls)"
         required: true
@@ -32,8 +37,9 @@ jobs:
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      CLAUDE_MODEL: claude-sonnet-4-5
+      CLAUDE_MODEL: claude-haiku-5-5
       GEMINI_MODEL: gemini-3.8-flash
+      ALLOW_PAID_CLAUDE: ${{ inputs.allow_paid_claude }}
       PROVIDER: ${{ inputs.provider }}
       MAX_CASES: ${{ inputs.max_cases }}
     steps:
@@ -41,7 +47,7 @@ jobs:
       - name: Verify API secrets exist (without displaying them)
         shell: bash
         run: |
-          if [[ ("$PROVIDER" == "claude" || "$PROVIDER" == "both") && -z "$ANTHROPIC_API_KEY" ]]; then
+          if [[ "$ALLOW_PAID_CLAUDE" == "true" && ("$PROVIDER" == "claude" || "$PROVIDER" == "both") && -z "$ANTHROPIC_API_KEY" ]]; then
             echo "::error::Missing repository secret ANTHROPIC_API_KEY"
             exit 1
           fi
@@ -58,11 +64,11 @@ jobs:
         run: python -m pip install -r requirements.txt
       - name: Verify offline tests
         run: python -m unittest discover -s tests -v
-      - name: Run text-only provider probes on harmless fixture prompts
+      - name: Run free-tier-first provider probes with bounded model fallbacks
         run: |
           python run_tests.py --mode live --provider "$PROVIDER" --max-cases "$MAX_CASES" --output results/live_results.csv
       - name: Upload live results as a private workflow artifact (not a Git commit)
-        if: success()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ygf-live-probe-${{ inputs.provider }}-${{ inputs.max_cases }}-cases
