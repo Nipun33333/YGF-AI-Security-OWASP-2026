@@ -1,0 +1,23 @@
+name: YGF Offline Unit Tests (No API Keys)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run all offline tests with fake providers only
+        run: python -m unittest discover -s tests -v
+      - name: Verify fixture generation without API calls
+        run: python run_tests.py --mode fixture --provider both --max-cases 3 --output /tmp/ygf_fixture_smoke.csv
