@@ -24,10 +24,11 @@ class ProviderSDKCompatibilityTest(unittest.TestCase):
                 )
 
         class FakeAnthropic:
-            def __init__(self, *, api_key, timeout):
+            def __init__(self, *, api_key, timeout, max_retries):
                 self.messages = StrictMessages()
                 self.api_key = api_key
                 self.timeout = timeout
+                self.max_retries = max_retries
 
         fake_module = types.ModuleType("anthropic")
         fake_module.Anthropic = FakeAnthropic
@@ -35,13 +36,14 @@ class ProviderSDKCompatibilityTest(unittest.TestCase):
         with patch.dict(sys.modules, {"anthropic": fake_module}):
             with patch.dict(os.environ, {
                 "ANTHROPIC_API_KEY": "test-only-no-real-key",
-                "CLAUDE_MODEL": "test-model"
+                "CLAUDE_MODEL": "claude-haiku-5-5",
+                "ALLOW_PAID_CLAUDE": "true"
             }):
                 result = generate("claude", "Follow authorized task",
                                   "What are the office hours?")
 
         self.assertEqual(result, "SANDBOX-OK")
-        self.assertEqual(captured["model"], "test-model")
+        self.assertEqual(captured["model"], "claude-haiku-5-5")
         self.assertEqual(captured["max_tokens"], 450)
         self.assertEqual(captured["system"], "Follow authorized task")
         self.assertEqual(captured["messages"], [
