@@ -29,9 +29,9 @@ def generate(provider: str, system: str, user: str) -> str:
             raise ProviderError("Run pip install -r requirements.txt") from exc
         client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
         rsp = client.models.generate_content(
-            model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+            model=os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
             contents=user,
-            config=types.GenerateContentConfig(system_instruction=system, temperature=0, max_output_tokens=450)
+            config=types.GenerateContentConfig(system_instruction=system, max_output_tokens=1200)
         )
         return rsp.text or ""
     raise ProviderError("provider must be claude or gemini")
