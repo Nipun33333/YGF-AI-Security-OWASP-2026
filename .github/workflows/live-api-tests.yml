@@ -1,0 +1,70 @@
+name: YGF Live API Security Tests
+
+# Runs ONLY when manually started by a repository collaborator.
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: "Which provider should be tested?"
+        required: true
+        type: choice
+        default: both
+        options:
+          - both
+          - gemini
+          - claude
+      max_cases:
+        description: "3 cases = small smoke test; 33 cases = full OWASP sample (incurs more API calls)"
+        required: true
+        type: choice
+        default: "3"
+        options:
+          - "3"
+          - "33"
+
+permissions:
+  contents: read
+
+jobs:
+  live-probes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      CLAUDE_MODEL: claude-sonnet-4-5
+      GEMINI_MODEL: gemini-2.5-flash
+      PROVIDER: ${{ inputs.provider }}
+      MAX_CASES: ${{ inputs.max_cases }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify API secrets exist (without displaying them)
+        shell: bash
+        run: |
+          if [[ ("$PROVIDER" == "claude" || "$PROVIDER" == "both") && -z "$ANTHROPIC_API_KEY" ]]; then
+            echo "::error::Missing repository secret ANTHROPIC_API_KEY"
+            exit 1
+          fi
+          if [[ ("$PROVIDER" == "gemini" || "$PROVIDER" == "both") && -z "$GEMINI_API_KEY" ]]; then
+            echo "::error::Missing repository secret GEMINI_API_KEY"
+            exit 1
+          fi
+          echo "Required secrets are configured. Values are not printed."
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Verify offline tests
+        run: python -m unittest discover -s tests -v
+      - name: Run text-only provider probes on harmless fixture prompts
+        run: |
+          python run_tests.py --mode live --provider "$PROVIDER" --max-cases "$MAX_CASES" --output results/live_results.csv
+      - name: Upload live results as a private workflow artifact (not a Git commit)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ygf-live-probe-${{ inputs.provider }}-${{ inputs.max_cases }}-cases
+          path: results/live_results.csv
+          retention-days: 7
