@@ -103,6 +103,36 @@ class FallbackTest(unittest.TestCase):
                     providers.generate("gemini", "s", "p")
         self.assertEqual(len(calls), 1)
 
+    def test_all_seven_models_unavailable_fails_without_faking_result(self):
+        calls = []
+
+        class Config:
+            def __init__(self, **kwargs):
+                pass
+
+        class Models:
+            def generate_content(self, *, model, contents, config):
+                calls.append(model)
+                raise APIError(404)
+
+        class Client:
+            def __init__(self, *, api_key):
+                self.models = Models()
+
+        google = types.ModuleType("google")
+        genai = types.ModuleType("google.genai")
+        genai.Client = Client
+        gtypes = types.ModuleType("google.genai.types")
+        gtypes.GenerateContentConfig = Config
+        genai.types = gtypes
+        google.genai = genai
+        modules = {"google": google, "google.genai": genai, "google.genai.types": gtypes}
+        with patch.dict(sys.modules, modules):
+            with patch.dict(os.environ, {"GEMINI_API_KEY": "fake", "GEMINI_MODEL": "gemini-3.8-flash"}):
+                with self.assertRaisesRegex(providers.ProviderUnavailable, "All 7 permitted gemini models"):
+                    providers.generate("gemini", "s", "p")
+        self.assertEqual(calls, list(providers.GEMINI_FREE_MODELS))
+
     def test_claude_is_skipped_in_free_only_mode(self):
         with patch.dict(os.environ, {"ALLOW_PAID_CLAUDE": "false"}):
             with self.assertRaisesRegex(providers.ProviderUnavailable, "SKIPPED_NO_FREE_CLAUDE_API"):
