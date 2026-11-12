@@ -49,5 +49,47 @@ class ProviderSDKCompatibilityTest(unittest.TestCase):
         ])
 
 
+    def test_gemini_supported_model_no_network(self):
+        captured = {}
+
+        class FakeConfig:
+            def __init__(self, **kwargs):
+                captured["config"] = kwargs
+
+        class FakeModels:
+            def generate_content(self, *, model, contents, config):
+                captured.update(model=model, contents=contents)
+                return types.SimpleNamespace(text="GEMINI-MOCK-OK")
+
+        class FakeClient:
+            def __init__(self, *, api_key):
+                self.models = FakeModels()
+
+        google_module = types.ModuleType("google")
+        genai_module = types.ModuleType("google.genai")
+        types_module = types.ModuleType("google.genai.types")
+        genai_module.Client = FakeClient
+        types_module.GenerateContentConfig = FakeConfig
+        genai_module.types = types_module
+        google_module.genai = genai_module
+
+        with patch.dict(sys.modules, {
+            "google": google_module,
+            "google.genai": genai_module,
+            "google.genai.types": types_module
+        }):
+            with patch.dict(os.environ, {
+                "GEMINI_API_KEY": "test-only-no-real-key",
+                "GEMINI_MODEL": "gemini-3.8-flash"
+            }):
+                result = generate("gemini", "Authorized system instruction", "Fake FAQ")
+
+        self.assertEqual(result, "GEMINI-MOCK-OK")
+        self.assertEqual(captured["model"], "gemini-3.8-flash")
+        self.assertEqual(captured["contents"], "Fake FAQ")
+        self.assertEqual(captured["config"]["system_instruction"], "Authorized system instruction")
+        self.assertGreaterEqual(captured["config"]["max_output_tokens"], 450)
+
+
 if __name__ == "__main__":
     unittest.main()
